@@ -7,17 +7,17 @@ import { signInWithRedirect, signOut, getCurrentUser, fetchAuthSession } from "a
 Amplify.configure({
   Auth: {
     Cognito: {
-      userPoolId: "ap-southeast-1_uHIi7mkxG",
-      userPoolClientId: "5ii9mpg8qqo6tbibltlmv9f51k",
+      userPoolId: process.env.REACT_APP_POOL_ID,
+      userPoolClientId: process.env.REACT_APP_CLIENT_ID,
       signUpVerificationMethod: "code",
       loginWith: {
         oauth: {
           domain:
-            "linh-test.auth.ap-southeast-1.amazoncognito.com",
+            process.env.REACT_APP_DOMAIN,
           scopes: ["email", "openid"],
-          redirectSignIn: ["http://localhost:3000"],
-          redirectSignOut: ["http://localhost:3000"],
-          responseType: "token",
+          redirectSignIn: [process.env.REACT_APP_SIGNIN_CALLBACK],
+          redirectSignOut: [process.env.REACT_APP_SIGNOUT_CALLBACK],
+          responseType: "code",
         },
       },
     },
@@ -26,6 +26,11 @@ Amplify.configure({
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [jwt, setJwt] = useState("");
+  const getToken = async () => {
+    const userAttributes = await fetchAuthSession();
+    setJwt(userAttributes.tokens.accessToken.toString());
+  }
 
   useEffect(() => {
     const unsubscribe = Hub.listen("auth", ({ payload }) => {
@@ -54,42 +59,26 @@ export default function App() {
     }
   };
 
-  return user !== null ? (<AuthenticatedApp user={user}></AuthenticatedApp>) : (<UnauthenticatedApp />);
-}
-
-function UnauthenticatedApp() {
-  return (
-    <div>
-      <div className="App">
-        <button
-          onClick={
-            () =>
-              signInWithRedirect(
-                // sign in with federated user is not working yet
-                // { provider: { custom: "Okta" } }
-              )
-          }
-        >
-          Log in
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AuthenticatedApp({ user }) {
-  
-  const [jwt, setJwt] = useState("");
-  const getToken = async () => {
-    const userAttributes = await fetchAuthSession();
-    setJwt(userAttributes.tokens.accessToken.toString());
-  }
-  return (
+  return user !== null ? (
     <div>
       <button onClick={() => signOut()}>Sign Out</button>
       <div>{user?.username}</div>
       <button onClick={getToken}>Get token</button>
       <div>{jwt}</div>
     </div>
-  );
+    ) : (
+    <div className="App">
+      <button
+        onClick={
+          () =>
+            signInWithRedirect(
+              // sign in with federated user is not working yet
+              // { provider: { custom: "Okta" } }
+            )
+        }
+      >
+        Log in
+      </button>
+    </div>
+    );
 }
